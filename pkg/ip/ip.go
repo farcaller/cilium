@@ -764,6 +764,31 @@ func KeepUniqueIPs(ips []net.IP) []net.IP {
 	return returnIPs
 }
 
+// KeepUniqueAddrs transforms the provided multiset of IP addresses into a
+// single set, lexicographically sorted via comparison of the addresses using
+// netip.Addr.Compare (i.e. IPv4 addresses show up before IPv6).
+// The slice is manipulated in-place destructively.
+//
+// 1- Sort the slice by comparing the addresses using netip.Addr.Compare
+// 2- For every unseen unique IP in the sorted slice, move it to the end of
+// the return slice.
+// Note that the slice is always large enough and, because it is sorted, we
+// will not overwrite a valid element with another. To overwrite an element i
+// with j, i must have come before j AND we decided it was a duplicate of the
+// element at i-1.
+func KeepUniqueAddrs(addrs []netip.Addr) []netip.Addr {
+	sort.Slice(addrs, func(i, j int) bool {
+		return addrs[i].Compare(addrs[j]) < 0
+	})
+	sortedAddrs := addrs[:0] // len==0 but cap==cap(ips)
+	for _, addr := range addrs {
+		if len(sortedAddrs) == 0 || sortedAddrs[len(sortedAddrs)-1] != addr {
+			sortedAddrs = append(sortedAddrs, addr)
+		}
+	}
+	return sortedAddrs
+}
+
 var privateIPBlocks []*net.IPNet
 
 func initPrivatePrefixes() {
