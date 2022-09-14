@@ -8,7 +8,7 @@ package api
 import (
 	"context"
 	"fmt"
-	"net"
+	"net/netip"
 
 	. "gopkg.in/check.v1"
 
@@ -31,16 +31,16 @@ func GetToGroupsRule() ToGroups {
 	}
 }
 func GetCallBackWithRule(ips ...string) GroupProviderFunc {
-	netIPs := []net.IP{}
+	netIPs := make([]netip.Addr, 0, len(ips))
 	for _, ip := range ips {
-		netIPs = append(netIPs, net.ParseIP(ip))
+		if addr, err := netip.ParseAddr(ip); err == nil {
+			netIPs = append(netIPs, addr)
+		}
 	}
 
-	cb := func(ctx context.Context, group *ToGroups) ([]net.IP, error) {
+	return func(ctx context.Context, group *ToGroups) ([]netip.Addr, error) {
 		return netIPs, nil
 	}
-
-	return cb
 }
 
 func (s *PolicyAPITestSuite) TestGetCIDRSetWithValidValue(c *C) {
@@ -83,9 +83,8 @@ func (s *PolicyAPITestSuite) TestGetCIDRSetWithUniqueCIDRRule(c *C) {
 }
 
 func (s *PolicyAPITestSuite) TestGetCIDRSetWithError(c *C) {
-
-	cb := func(ctx context.Context, group *ToGroups) ([]net.IP, error) {
-		return []net.IP{}, fmt.Errorf("Invalid credentials")
+	cb := func(ctx context.Context, group *ToGroups) ([]netip.Addr, error) {
+		return []netip.Addr{}, fmt.Errorf("Invalid credentials")
 	}
 	RegisterToGroupsProvider(AWSProvider, cb)
 	group := GetToGroupsRule()
